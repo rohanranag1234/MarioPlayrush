@@ -96,6 +96,38 @@ export const SKINS = [
   { id: "golden", name: "Golden Hour", color: "#DDB553", price: 800 },
   { id: "forest", name: "Forest Spirit", color: "#8FAA7B", price: 1200 },
 ];
+// These reducers recheck the latest state, including queued rapid purchases.
+export function purchaseSkin(
+  p: Progress,
+  skin: (typeof SKINS)[number],
+): Progress {
+  const owned = p.skins.includes(skin.id);
+  if (!owned && p.coins < skin.price) return p;
+  return {
+    ...p,
+    coins: p.coins - (owned ? 0 : skin.price),
+    skins: owned ? p.skins : [...p.skins, skin.id],
+    skin: skin.id,
+  };
+}
+export function purchaseItem(
+  p: Progress,
+  item: { id: string; price: number },
+): Progress {
+  if (p.coins < item.price || (item.id === "life" && p.lives >= 5)) return p;
+  return {
+    ...p,
+    coins: p.coins - item.price,
+    lives: item.id === "life" ? p.lives + 1 : p.lives,
+    inventory:
+      item.id === "life"
+        ? p.inventory
+        : {
+            ...p.inventory,
+            [item.id]: (p.inventory[item.id] || 0) + 1,
+          },
+  };
+}
 // Replace this adapter when a real backend is configured. Never present local scores as verified.
 export interface CloudService {
   signIn(provider: "google" | "apple"): Promise<void>;

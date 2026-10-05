@@ -9,6 +9,8 @@ import {
 } from "react-native";
 import {
   Progress,
+  purchaseSkin,
+  purchaseItem,
   SKINS,
   totalStars,
   totalPoints,
@@ -125,13 +127,7 @@ export function Shop({ p, update, notify }: MetaProps) {
                         );
                         return;
                       }
-                      update((prev) => ({
-                        ...prev,
-                        coins: prev.coins - (owned ? 0 : skin.price),
-                        skins: owned ? prev.skins : [...prev.skins, skin.id],
-                        skin: skin.id,
-                      }));
-                      notify(`${skin.name} equipped. Looking adventurous!`);
+                      update((prev) => purchaseSkin(prev, skin));
                     }}
                   >
                     {p.skin === skin.id
@@ -197,22 +193,7 @@ export function Shop({ p, update, notify }: MetaProps) {
                       );
                       return;
                     }
-                    update((prev) => ({
-                      ...prev,
-                      coins: prev.coins - item.price,
-                      lives:
-                        item.id === "life"
-                          ? Math.min(5, prev.lives + 1)
-                          : prev.lives,
-                      inventory:
-                        item.id === "life"
-                          ? prev.inventory
-                          : {
-                              ...prev.inventory,
-                              [item.id]: (prev.inventory[item.id] || 0) + 1,
-                            },
-                    }));
-                    notify(`${item.name} added!`);
+                    update((prev) => purchaseItem(prev, item));
                   }}
                 >
                   {item.price} coins · Buy

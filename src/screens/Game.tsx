@@ -140,10 +140,11 @@ export function Game({
     input.current[key] = value;
   };
   const reset = (checkpoint: boolean) => {
+    if (checkpoint && current.current.time <= 0) return;
     if (!(checkpoint ? onRetry() : onRestart())) return;
     const next = checkpoint
       ? retryGame(current.current, level)
-      : createGame(level);
+      : createGame(level, power);
     current.current = next;
     setGame(next);
     done.current = false;
@@ -478,9 +479,11 @@ export function Game({
             </Title>
             <Body style={{ textAlign: "center" }}>
               {game.status === "dead"
-                ? game.checkpoint
-                  ? "Your checkpoint is ready. Let’s try again."
-                  : "Every great adventure takes a little practice."
+                ? game.time <= 0
+                  ? "Time is up. Restart for a fresh run."
+                  : game.checkpoint
+                    ? "Your checkpoint is ready. Let’s try again."
+                    : "Every great adventure takes a little practice."
                 : `Level ${level.id} · ${level.name}`}
             </Body>
             <View
@@ -493,6 +496,7 @@ export function Game({
             >
               <Button
                 icon="play"
+                disabled={game.status === "dead" && game.time <= 0}
                 onPress={() =>
                   game.status === "dead" ? reset(true) : togglePause(false)
                 }

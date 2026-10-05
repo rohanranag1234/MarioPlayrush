@@ -118,7 +118,7 @@ The simulator build cannot be installed on a physical iPhone. You can also open 
 | Meta game    | Skin and power-up shop, daily rewards, four achievements, profile and settings                                                          |
 | Art/audio    | Original fox, changing scenery, horned/fanged monsters in SVG, original looping music, button haptics and bundled fonts                 |
 
-The first ten levels are free to retry. Later starts and death retries cost a life; one life refills every 20 minutes up to five. Collected currency and extra lives bank on successful completion. Replays can earn coins; total points use each level's best score. Checkpoint retries preserve collectibles and mark the run damaged.
+The first ten levels are free to retry. Later starts and death retries cost a life; one life refills every 20 minutes up to five. Collected currency and extra lives bank on successful completion. Replays can earn coins; total points use each level's best score. Checkpoint retries restore collectibles, points and enemy health to the checkpoint snapshot and mark the run damaged. Rewards earned after the checkpoint are lost on death. Retry never refunds countdown time; an expired timer requires a full restart. Elapsed time includes every checkpoint attempt.
 
 ## 7. Work still needed for the full brief
 
@@ -169,7 +169,7 @@ npm run build           # Android + iOS JavaScript/Hermes exports
 
 `npm run build` checks native bundling; it does **not** generate an APK/IPA. Use the EAS commands above for signed installable apps.
 
-All 18 tests pass, covering scoring, rewards/progression, checkpoint safety, short taps, jump buffering, ledge grace, enemy behavior, simultaneous touch input and a complete level-one replay. Tests verify 100 deterministic unique layouts and traverse their terrain with enemies/hazards removed to isolate jump reachability. This does not prove every combat encounter is balanced or that all 100 levels have been beaten. Android and iOS bundle exports and TypeScript pass; physical-device checks remain outstanding.
+All 26 tests pass, covering scoring, rewards/progression, checkpoint safety, short taps, jump buffering, ledge grace, enemy behavior, simultaneous touch input and a complete level-one replay. Regression coverage includes retry timing/checkpoint rollback, queued purchases and saved-progress validation. Tests verify 100 deterministic unique layouts and traverse their terrain with enemies/hazards removed to isolate jump reachability. This does not prove every combat encounter is balanced or that all 100 levels have been beaten. Android and iOS bundle exports and TypeScript pass; physical-device checks remain outstanding.
 
 The dependency installation still reports 23 upstream advisories (16 high, 7 moderate) in the Expo/React Native tooling dependency tree. Do not apply the proposed incompatible SDK downgrades using `npm audit fix --force`. Recheck upstream fixes before release.
 

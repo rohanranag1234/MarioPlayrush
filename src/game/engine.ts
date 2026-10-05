@@ -21,6 +21,8 @@ export type GameState = {
   grounded: boolean;
   facing: number;
   time: number;
+  elapsed: number;
+  checkpointState: RespawnState | null;
   status: "playing" | "dead" | "complete";
   collected: number[];
   enemies: { x: number; dir: number; hp: number }[];
@@ -44,6 +46,20 @@ export type GameState = {
   extraLives: number;
   tick: number;
 };
+type RespawnState = Pick<
+  GameState,
+  "collected" | "enemies" | "breakdown" | "coins" | "tokens" | "extraLives"
+>;
+function respawnState(s: RespawnState): RespawnState {
+  return {
+    collected: [...s.collected],
+    enemies: s.enemies.map((enemy) => ({ ...enemy })),
+    breakdown: { ...s.breakdown },
+    coins: s.coins,
+    tokens: [...s.tokens],
+    extraLives: s.extraLives,
+  };
+}
 export function createGame(level: Level, power?: string): GameState {
   return {
     x: 65,
@@ -53,6 +69,8 @@ export function createGame(level: Level, power?: string): GameState {
     grounded: false,
     facing: 1,
     time: level.time,
+    elapsed: 0,
+    checkpointState: null,
     status: "playing",
     collected: [],
     enemies: level.enemies.map((e) => ({ x: e.x, dir: 1, hp: e.health })),
@@ -88,8 +106,11 @@ const overlap = (
   bh: number,
 ) => ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 export function retryGame(s: GameState, level: Level): GameState {
+  // An expired run requires a full restart; retry never refunds its countdown.
+  if (s.time <= 0) return s;
   return {
     ...s,
+    ...respawnState(s.checkpointState ?? createGame(level)),
     x: s.checkpoint ? level.checkpoint + 20 : 65,
     y: 310,
     vx: 0,
@@ -97,7 +118,13 @@ export function retryGame(s: GameState, level: Level): GameState {
     status: "playing",
     hearts: 1,
     invincible: 2,
-    time: Math.max(60, s.time),
+    grounded: false,
+    chain: 0,
+    boots: 0,
+    magnet: 0,
+    shield: 0,
+    pop: "",
+    popTime: 0,
     damaged: true,
     jumpHeld: false,
     jumpBuffer: 0,
@@ -128,6 +155,7 @@ export function stepGame(
     enemies: s.enemies.map((e) => ({ ...e })),
     tick: s.tick + dt,
   };
+  n.elapsed += Math.min(n.time, dt);
   n.time = Math.max(0, n.time - dt);
   n.invincible = Math.max(0, n.invincible - dt);
   n.boots = Math.max(0, n.boots - dt);
@@ -287,12 +315,14 @@ export function stepGame(
     n.status = "complete";
     n.breakdown.finish =
       POINTS.finish + Math.round(Math.max(0, Math.min(500, (320 - n.y) * 3)));
-    n.breakdown.time = Math.floor(n.time) * 10;
+    n.breakdown.time =
+      Math.floor(Math.max(0, Math.min(n.time, level.time - n.elapsed))) * 10;
     n.breakdown.noDamage = n.damaged ? 0 : POINTS.noDamage;
   }
   n.extraLives +=
     Math.floor(totalScore(n.breakdown) / 10000) -
     Math.floor(totalScore(s.breakdown) / 10000);
+  if (n.checkpoint && !s.checkpoint) n.checkpointState = respawnState(n);
   n.camera = Math.max(0, Math.min(level.width - 900, n.x - 300));
   return n;
 }
@@ -307,7 +337,7 @@ export function resultOf(s: GameState, level: Level) {
       level.target,
     ),
     tokens: s.tokens,
-    time: Math.floor(level.time - s.time),
+    time: Math.floor(s.elapsed),
     coins: s.coins,
     extraLives: s.extraLives,
     breakdown: s.breakdown,
