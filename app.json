@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Rusty Run 100",
+    "slug": "rusty-run-100",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.rustyrun.adventure"
+    },
+    "web": {
+      "name": "Rusty Run 100",
+      "description": "A little fox. A big adventure. Explore, jump and discover in Rusty Run 100."
+    },
+    "plugins": ["expo-font"]
+  }
+}

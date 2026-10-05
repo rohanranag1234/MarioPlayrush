@@ -1,0 +1,35 @@
+{
+  "name": "rusty-run-100",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@expo-google-fonts/fredoka": "^0.4.1",
+    "@expo-google-fonts/nunito-sans": "^0.4.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~57.0.26",
+    "expo-font": "~57.0.4",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "~19.2.2",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "build": "expo export --platform web"
+  },
+  "private": true
+}
