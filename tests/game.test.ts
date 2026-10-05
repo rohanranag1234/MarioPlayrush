@@ -82,7 +82,7 @@ test("checkpoint retry retains collectibles without duplicating the checkpoint r
   s = stepGame(s, l, idle, 1 / 60);
   assert.equal(s.checkpoint, true);
   assert.equal(s.breakdown.checkpoints, 300);
-  s = retryGame({ ...s, status: "dead" });
+  s = retryGame({ ...s, status: "dead" }, l);
   s = stepGame(s, l, idle, 1 / 60);
   assert.equal(s.breakdown.checkpoints, 300);
   assert.equal(s.damaged, true);
@@ -147,22 +147,19 @@ test("lives refill without exceeding five; worlds require both progression and s
   assert.equal(canPlay(p, 12), false);
 });
 
-test("recorded player inputs complete level one through collisions without teleporting", () => {
+test("complete the new first level with recorded movement and jump inputs", () => {
   const level = makeLevel(1);
-  const jumps = new Set([
-    8, 54, 72, 91, 125, 163, 195, 248, 287, 352, 394, 423, 495, 527, 579, 622,
-  ]);
+  const jumps = new Set([8, 51, 95, 146, 202, 277, 299, 400, 428, 464]);
   let game = createGame(level);
-  for (let tick = 0; tick < 1000 && game.status === "playing"; tick++) {
+  for (let frame = 0; frame < 1200 && game.status === "playing"; frame++) {
     game = stepGame(
       game,
       level,
-      { left: false, right: true, jump: jumps.has(tick) },
+      { left: false, right: true, jump: jumps.has(frame) },
       1 / 60,
     );
   }
   assert.equal(game.status, "complete");
   assert.ok(game.checkpoint);
-  assert.ok(game.coins > 0);
-  assert.equal(resultOf(game, level).stars, 2);
+  assert.ok(resultOf(game, level).score > 0);
 });

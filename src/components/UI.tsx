@@ -8,6 +8,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { colors as c, fonts as f } from "../theme";
+import { useButtonFeedback } from "./Feedback";
 import { Icon, Coin } from "./Icon";
 export function Button({
   children,
@@ -24,10 +25,12 @@ export function Button({
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const feedback = useButtonFeedback();
   return (
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
+      onPressIn={feedback}
       onPress={onPress}
       style={({ pressed, hovered }: any) => [
         styles.button,

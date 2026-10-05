@@ -6,6 +6,7 @@ import {
   findNodeHandle,
 } from "react-native";
 import { updateTouches } from "../game/touchInput";
+import { useButtonFeedback } from "./Feedback";
 import { Icon } from "./Icon";
 import { colors } from "../theme";
 
@@ -22,10 +23,12 @@ export function TouchControl({
   large: boolean;
   onChange: (held: boolean) => void;
 }) {
+  const feedback = useButtonFeedback();
   const view = useRef<View>(null);
   const touches = useRef(new Set<string>());
   const [held, setHeld] = useState(false);
   const change = (event: GestureResponderEvent, down: boolean) => {
+    const wasHeld = touches.current.size > 0;
     touches.current = updateTouches(
       touches.current,
       event.nativeEvent.changedTouches,
@@ -33,8 +36,9 @@ export function TouchControl({
       findNodeHandle(view.current),
     );
     const active = touches.current.size > 0;
-    setHeld(active);
     onChange(active);
+    if (active && !wasHeld) feedback();
+    setHeld(active);
   };
   return (
     <View

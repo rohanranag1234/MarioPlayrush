@@ -554,6 +554,16 @@ export function SettingsScreen({
 }: MetaProps & { onReset: () => void }) {
   const rows: { key: keyof Settings; name: string; desc: string }[] = [
     {
+      key: "music",
+      name: "Gameplay music",
+      desc: "Original looping soundtrack. Respects your phone’s silent mode.",
+    },
+    {
+      key: "vibration",
+      name: "Button vibration",
+      desc: "Light feedback when you press game controls and buttons.",
+    },
+    {
       key: "leftHanded",
       name: "Left-handed controls",
       desc: "Put the jump button on the left.",

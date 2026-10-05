@@ -50,11 +50,14 @@ The native OS launch screen appears before React Native starts; the 2.5-second a
 
 - **Portrait menus:** bottom tabs for Home, Explore, Shop, My fox and More.
 - **More:** daily rewards, leaderboard status, achievements, settings and the touch-control guide.
-- **Landscape gameplay:** starting a level requests landscape orientation and fills the available screen. Returning to menus or showing results requests portrait orientation.
-- **Two-thumb controls:** hold a direction with one thumb and tap jump with the other. Touch cancellation and backgrounding clear held inputs.
+- **Landscape gameplay:** starting a level requests landscape orientation and fills the available screen. Pause, results, replay and the next-level dialog stay in landscape. Returning to the map or menus requests portrait orientation. Android navigation and status bars are hidden during the run.
+- **Two-thumb controls:** hold a direction with one thumb and tap jump with the other. Touch cancellation and backgrounding clear held inputs. Movement is about 27% faster; a 120ms jump buffer and 90ms ledge grace period make quick jump taps more forgiving.
 - **Pause:** tap the pause button; Android Back also pauses the game. Returning from another app keeps the game paused.
 - **Comfort:** larger buttons, a left-handed layout and reduced collectible motion are available in Settings.
-- **Safe areas:** the app accounts for notches and the home indicator.
+- **Safe areas:** the scene fills the screen while the HUD and controls avoid notches and the home indicator.
+- **Music and vibration:** an original 15-second loop plays during active gameplay and pauses with the game, on death, at completion and when backgrounded. Buttons give light haptic feedback. Toggle either option in Settings. Music respects iPhone silent mode; haptic strength/availability depends on the phone and system settings.
+
+This update adds native audio, haptics and navigation-bar modules. Run `npm ci` and `npx expo start --clear` after replacing the source. Existing standalone/development builds must be rebuilt to include these modules.
 
 ## 4. Create an installable Android APK
 
@@ -105,15 +108,15 @@ The simulator build cannot be installed on a physical iPhone. You can also open 
 
 ## 6. What the game contains
 
-| System       | Current implementation                                                                                              |
-| ------------ | ------------------------------------------------------------------------------------------------------------------- |
-| Mobile shell | Portrait menus, bottom navigation, landscape game, safe areas, Android Back handling                                |
-| Platformer   | Movement, jumping, gravity, collision, pits, enemy stomps/chains, checkpoints, timer, flag and a three-hit guardian |
-| Scoring      | Central action-point rules, 1–3 stars, best scores, time/no-damage bonuses, coins separate from points              |
-| First world  | Ten authored platform arrangements, three tokens per level, coins/gems, pickups and bonus blocks                    |
-| Progress     | 100 level nodes in 10 worlds, sequential/star gates, lives/refills and local persistence                            |
-| Meta game    | Skin and power-up shop, daily rewards, four achievements, profile and settings                                      |
-| Art          | Original fox, landscapes and icon paths drawn in SVG; bundled fonts                                                 |
+| System       | Current implementation                                                                                                                  |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Mobile shell | Portrait menus, bottom navigation, landscape game/results, safe areas, Android Back handling                                            |
+| Platformer   | Movement, jumping, gravity, collision, pits, enemy stomps/chains, checkpoints, timer, spikes, flag and guardians with increasing health |
+| Scoring      | Central action-point rules, 1–3 stars, best scores, time/no-damage bonuses, coins separate from points                                  |
+| Courses      | 100 distinct seeded layouts, increasing length/gaps/enemy speed, three tokens per level, coins/gems and pickups                         |
+| Progress     | 100 level nodes in 10 worlds, sequential/star gates, lives/refills and local persistence                                                |
+| Meta game    | Skin and power-up shop, daily rewards, four achievements, profile and settings                                                          |
+| Art/audio    | Original fox, changing scenery, horned/fanged monsters in SVG, original looping music, button haptics and bundled fonts                 |
 
 The first ten levels are free to retry. Later starts and death retries cost a life; one life refills every 20 minutes up to five. Collected currency and extra lives bank on successful completion. Replays can earn coins; total points use each level's best score. Checkpoint retries preserve collectibles and mark the run damaged.
 
@@ -121,12 +124,12 @@ The first ten levels are free to retry. Later starts and death retries cost a li
 
 This remains a playable **guest prototype**, not a completed store release:
 
-- Worlds 2–10 remix the first ten layouts. The remaining 90 bespoke levels, world-specific mechanics, distinct bosses and later score-target balancing still need work.
+- All 100 courses use deterministic procedural generation with distinct geometry. They are not 100 hand-authored levels. Later courses introduce spikes, pursuing hunters, tougher brutes and stronger guardians. Physical playtesting, score-target balancing and additional world-specific mechanics still need work.
 - Google/Apple/email sign-in, cloud saves, account linking, shared leaderboards and server score validation are not connected. `CloudService` is the service boundary; leaderboard screens explain the connection status.
-- Sound, music, haptics, ads, notifications, real-money purchases, sharing, translations and full onboarding are not implemented.
+- Action sound effects, ads, notifications, real-money purchases, sharing, translations and full onboarding are not implemented.
 - Backgrounding pauses the run in memory. Force-closing the app ends the current run; completed progress remains saved. Durable in-progress recovery is still needed.
 - Before cloud launch: implement authentication, owned-data rules, idempotent rewards/results, rate limits, score replay/validation and max-progress conflict handling.
-- Physical-phone touch behavior, orientation, interruptions and frame-rate performance need real-device testing. Native JavaScript/Hermes exports do not prove these runtime behaviors.
+- Physical-phone touch behavior, audio, haptics, orientation, interruptions and frame-rate performance need real-device testing. Native JavaScript/Hermes exports do not prove these runtime behaviors.
 
 ## Source guide
 
@@ -134,7 +137,14 @@ This remains a playable **guest prototype**, not a completed store release:
 App.tsx                          Mobile shell, orientation, bottom tabs, state and dialogs
 src/components/LaunchIntro.tsx    2.5-second animated opening
 src/components/TouchControl.tsx   Per-touch movement/jump controls
+src/components/Feedback.tsx       Button haptic feedback
+src/components/Monster.tsx        Crawler, hunter, brute and guardian artwork
+src/components/LevelBackdrop.tsx  World scenery with per-level variation
+src/hooks/useGameplayMusic.ts     Native looping music lifecycle
+assets/music/night-trail.wav      Original gameplay loop
+scripts/generate-music.py         Reproducible music synthesis (Python stdlib)
 src/screens/Game.tsx              Fullscreen scene, HUD, camera and pause
+src/screens/LevelComplete.tsx     Landscape results with score breakdown
 src/screens/Home.tsx              Phone home screen
 src/screens/WorldMap.tsx          World and level selection
 src/screens/Meta.tsx              Shop, rewards, achievements, profile and settings
@@ -159,10 +169,10 @@ npm run build           # Android + iOS JavaScript/Hermes exports
 
 `npm run build` checks native bundling; it does **not** generate an APK/IPA. Use the EAS commands above for signed installable apps.
 
-Two new tests cover simultaneous touch batches and independent release. The 10 existing game/progression tests remain valid because those modules and test files are unchanged by the mobile adaptation. They cover scoring, the brief's worked example, collisions, collectibles, checkpoints, completion, damage, daily rewards, lives, unlocking and a full level-one input replay.
+All 18 tests pass, covering scoring, rewards/progression, checkpoint safety, short taps, jump buffering, ledge grace, enemy behavior, simultaneous touch input and a complete level-one replay. Tests verify 100 deterministic unique layouts and traverse their terrain with enemies/hazards removed to isolate jump reachability. This does not prove every combat encounter is balanced or that all 100 levels have been beaten. Android and iOS bundle exports and TypeScript pass; physical-device checks remain outstanding.
 
 The dependency installation still reports 23 upstream advisories (16 high, 7 moderate) in the Expo/React Native tooling dependency tree. Do not apply the proposed incompatible SDK downgrades using `npm audit fix --force`. Recheck upstream fixes before release.
 
 ## Licenses
 
-Illustrations and icon paths are original source artwork. Fredoka and Nunito Sans font packages include SIL Open Font License files; retain those licenses when redistributing font files. Template images in `assets/` are unused.
+Illustrations, icon paths and the synthesized music loop are original source assets. Fredoka and Nunito Sans font packages include SIL Open Font License files; retain those licenses when redistributing font files. Template images in `assets/` are unused.

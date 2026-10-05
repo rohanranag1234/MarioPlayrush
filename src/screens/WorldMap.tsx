@@ -183,8 +183,8 @@ export function WorldMap({
       </View>
       {world > 1 && (
         <Body style={{ fontSize: 12 }}>
-          Adventure preview: these worlds remix the meadow layouts. Bespoke
-          environments and world mechanics are planned for the next build.
+          Every course changes the terrain and treasure. Later levels bring wider
+          gaps, faster monsters and more spikes.
         </Body>
       )}
     </View>

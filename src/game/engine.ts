@@ -7,7 +7,12 @@ import {
   totalScore,
   earnedStars,
 } from "./scoring";
-export type Input = { left: boolean; right: boolean; jump: boolean };
+export type Input = {
+  left: boolean;
+  right: boolean;
+  jump: boolean;
+  jumpPressed?: boolean;
+};
 export type GameState = {
   x: number;
   y: number;
@@ -31,6 +36,8 @@ export type GameState = {
   magnet: number;
   shield: number;
   jumpHeld: boolean;
+  jumpBuffer: number;
+  coyoteTime: number;
   camera: number;
   pop: string;
   popTime: number;
@@ -48,7 +55,7 @@ export function createGame(level: Level, power?: string): GameState {
     time: level.time,
     status: "playing",
     collected: [],
-    enemies: level.enemies.map((e) => ({ x: e.x, dir: 1, hp: e.boss ? 3 : 1 })),
+    enemies: level.enemies.map((e) => ({ x: e.x, dir: 1, hp: e.health })),
     breakdown: emptyBreakdown(),
     coins: 0,
     tokens: [],
@@ -61,6 +68,8 @@ export function createGame(level: Level, power?: string): GameState {
     magnet: 0,
     shield: power === "shield" ? 10 : 0,
     jumpHeld: false,
+    jumpBuffer: 0,
+    coyoteTime: 0,
     camera: 0,
     pop: "",
     popTime: 0,
@@ -78,10 +87,10 @@ const overlap = (
   bw: number,
   bh: number,
 ) => ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
-export function retryGame(s: GameState): GameState {
+export function retryGame(s: GameState, level: Level): GameState {
   return {
     ...s,
-    x: s.checkpoint ? 1390 : 65,
+    x: s.checkpoint ? level.checkpoint + 20 : 65,
     y: 310,
     vx: 0,
     vy: 0,
@@ -91,6 +100,8 @@ export function retryGame(s: GameState): GameState {
     time: Math.max(60, s.time),
     damaged: true,
     jumpHeld: false,
+    jumpBuffer: 0,
+    coyoteTime: 0,
   };
 }
 function hurt(s: GameState) {
@@ -128,11 +139,18 @@ export function stepGame(
     return n;
   }
   const dir = Number(input.right) - Number(input.left);
-  n.vx = dir * 245;
+  n.vx = dir * 310;
   if (dir) n.facing = dir;
-  if (input.jump && !s.jumpHeld && s.grounded) {
-    n.vy = n.boots > 0 ? -670 : -565;
+  n.jumpBuffer =
+    input.jumpPressed || (input.jump && !s.jumpHeld)
+      ? 0.12
+      : Math.max(0, s.jumpBuffer - dt);
+  n.coyoteTime = s.grounded ? 0.09 : Math.max(0, s.coyoteTime - dt);
+  if (n.jumpBuffer > 0 && (s.grounded || n.coyoteTime > 0)) {
+    n.vy = n.boots > 0 ? -710 : -625;
     n.grounded = false;
+    n.jumpBuffer = 0;
+    n.coyoteTime = 0;
   }
   n.jumpHeld = input.jump;
   const oldY = n.y;
@@ -153,6 +171,12 @@ export function stepGame(
         n.vy = 0;
         n.grounded = true;
         n.chain = 0;
+        if (n.jumpBuffer > 0) {
+          n.vy = n.boots > 0 ? -710 : -625;
+          n.grounded = false;
+          n.jumpBuffer = 0;
+          n.coyoteTime = 0;
+        }
       } else if (n.vy < 0 && oldY >= p.y + p.h - 4) {
         n.y = p.y + p.h;
         n.vy = 0;
@@ -214,7 +238,9 @@ export function stepGame(
   level.enemies.forEach((e, i) => {
     const enemy = n.enemies[i];
     if (enemy.hp <= 0) return;
-    enemy.x += enemy.dir * (e.boss ? 80 : 50 + level.world.id * 4) * dt;
+    const chasing = e.kind === "hunter" && Math.abs(n.x - enemy.x) < 230;
+    if (chasing) enemy.dir = n.x < enemy.x ? -1 : 1;
+    enemy.x += enemy.dir * e.speed * (chasing ? 1.65 : 1) * dt;
     if (enemy.x > e.max) {
       enemy.x = e.max;
       enemy.dir = -1;
@@ -223,7 +249,7 @@ export function stepGame(
       enemy.x = e.min;
       enemy.dir = 1;
     }
-    const size = e.boss ? 54 : 26;
+    const size = e.size;
     if (overlap(n.x, n.y, 30, 40, enemy.x, e.y, size, size)) {
       if (n.shield > 0) {
         enemy.hp = 0;
@@ -243,7 +269,13 @@ export function stepGame(
       } else hurt(n);
     }
   });
-  if (!n.checkpoint && n.x >= level.checkpoint) {
+  for (const hazard of level.hazards) {
+    if (
+      overlap(n.x + 4, n.y + 5, 22, 35, hazard.x, hazard.y, hazard.w, hazard.h)
+    )
+      hurt(n);
+  }
+  if (!n.checkpoint && n.status === "playing" && n.x >= level.checkpoint) {
     n.checkpoint = true;
     add("checkpoints", POINTS.checkpoint);
   }

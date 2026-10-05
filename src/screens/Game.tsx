@@ -18,7 +18,10 @@ import Svg, {
   Text as SvgText,
 } from "react-native-svg";
 import { TouchControl } from "../components/TouchControl";
-import { Landscape, FoxShape } from "../components/Art";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Monster } from "../components/Monster";
+import { LevelBackdrop } from "../components/LevelBackdrop";
+import { FoxShape } from "../components/Art";
 import { Icon, Coin } from "../components/Icon";
 import { Button, Title, Body } from "../components/UI";
 import { colors as c, fonts as f } from "../theme";
@@ -31,6 +34,8 @@ import {
   Input,
 } from "../game/engine";
 import { totalScore } from "../game/scoring";
+import { useGameplayMusic } from "../hooks/useGameplayMusic";
+import { useButtonFeedback } from "../components/Feedback";
 import { Settings } from "../services/progress";
 const starPath = "M0-12 4-4 12-3 6 3 8 11 0 7-8 11-6 3-12-3-4-4z";
 export function Game({
@@ -54,10 +59,14 @@ export function Game({
 }) {
   const [game, setGame] = useState(() => createGame(level, power));
   const current = useRef(game);
+  const feedback = useButtonFeedback();
   const [paused, setPaused] = useState(false);
   const pauseRef = useRef(false);
+  useGameplayMusic(settings.music && !paused && game.status === "playing");
   const input = useRef<Input>({ left: false, right: false, jump: false });
   const done = useRef(false);
+  const jumpQueued = useRef(false);
+  const insets = useSafeAreaInsets();
   const windowSize = useWindowDimensions();
   const [stage, setStage] = useState({
     width: windowSize.width,
@@ -73,6 +82,7 @@ export function Game({
   );
   const togglePause = (v: boolean) => {
     pauseRef.current = v;
+    jumpQueued.current = false;
     setPaused(v);
     input.current = { left: false, right: false, jump: false };
   };
@@ -81,12 +91,21 @@ export function Game({
     let last = 0;
     const tick = (time: number) => {
       if (last && !pauseRef.current) {
-        const next = stepGame(
-          current.current,
-          level,
-          input.current,
-          (time - last) / 1000,
-        );
+        let remaining = Math.min(0.1, (time - last) / 1000);
+        let next = current.current;
+        let first = true;
+        while (remaining > 0) {
+          const delta = Math.min(1 / 60, remaining);
+          next = stepGame(
+            next,
+            level,
+            { ...input.current, jumpPressed: first && jumpQueued.current },
+            delta,
+          );
+          remaining -= delta;
+          first = false;
+        }
+        jumpQueued.current = false;
         current.current = next;
         setGame(next);
         if (next.status === "complete" && !done.current) {
@@ -116,11 +135,15 @@ export function Game({
     return () => back.remove();
   }, []);
   const press = (key: keyof Input, value: boolean) => {
+    if (key === "jump" && value && !input.current.jump)
+      jumpQueued.current = true;
     input.current[key] = value;
   };
   const reset = (checkpoint: boolean) => {
     if (!(checkpoint ? onRetry() : onRestart())) return;
-    const next = checkpoint ? retryGame(current.current) : createGame(level);
+    const next = checkpoint
+      ? retryGame(current.current, level)
+      : createGame(level);
     current.current = next;
     setGame(next);
     done.current = false;
@@ -142,7 +165,7 @@ export function Game({
       }
     >
       <View style={StyleSheet.absoluteFill}>
-        <Landscape world={level.world.id} />
+        <LevelBackdrop world={level.world} variant={level.scenery} />
       </View>
       <Svg
         style={StyleSheet.absoluteFill}
@@ -276,46 +299,40 @@ export function Game({
               fill="none"
             />
           </G>
-          {game.enemies.map((e, i) => {
-            const def = level.enemies[i];
-            return (
-              e.hp > 0 && (
+          {level.hazards.map((hazard, i) => (
+            <G
+              key={`hazard-${i}`}
+              transform={`translate(${hazard.x} ${hazard.y})`}
+            >
+              <Rect y={17} width={hazard.w} height={5} fill="#765B53" />
+              {Array.from({ length: Math.ceil(hazard.w / 14) }, (_, j) => (
+                <Path
+                  key={j}
+                  d={`M${j * 14} 20l7-20 7 20z`}
+                  fill="#654C64"
+                  stroke="#F3CAB6"
+                  strokeWidth={1.2}
+                />
+              ))}
+            </G>
+          ))}
+          {game.enemies.map(
+            (enemy, i) =>
+              enemy.hp > 0 && (
                 <G
                   key={i}
-                  transform={`translate(${e.x} ${def.y}) scale(${def.boss ? 2 : 1})`}
+                  transform={`translate(${enemy.x} ${level.enemies[i].y})`}
                 >
-                  <Ellipse cx={13} cy={24} rx={19} ry={5} fill="#50764D" />
-                  <Path
-                    d="M0 22V14C0-6 27-6 27 14v8z"
-                    fill={def.boss ? "#967A9C" : "#8C7661"}
+                  <Monster
+                    kind={level.enemies[i].kind}
+                    size={level.enemies[i].size}
+                    hp={enemy.hp}
+                    maxHp={level.enemies[i].health}
+                    facing={enemy.dir}
                   />
-                  <Circle cx={8} cy={11} r={4} fill="#FFF4D6" />
-                  <Circle cx={20} cy={11} r={4} fill="#FFF4D6" />
-                  <Circle cx={9} cy={12} r={1.7} fill="#384E38" />
-                  <Circle cx={21} cy={12} r={1.7} fill="#384E38" />
-                  {def.boss && (
-                    <>
-                      <Path d="m0-3 3-9 8 6 7-6 5 9z" fill="#E6B844" />
-                      <Rect
-                        x={-3}
-                        y={-20}
-                        width={34}
-                        height={4}
-                        fill="#BFA7B8"
-                      />
-                      <Rect
-                        x={-3}
-                        y={-20}
-                        width={(34 * e.hp) / 3}
-                        height={4}
-                        fill="#855C85"
-                      />
-                    </>
-                  )}
                 </G>
-              )
-            );
-          })}
+              ),
+          )}
           <G
             opacity={
               game.invincible > 0 && Math.floor(game.tick * 12) % 2 === 0
@@ -360,7 +377,16 @@ export function Game({
           )}
         </G>
       </Svg>
-      <View style={s.hud}>
+      <View
+        style={[
+          s.hud,
+          {
+            left: insets.left + 12,
+            right: insets.right + 12,
+            top: insets.top + 8,
+          },
+        ]}
+      >
         <View style={s.hudGroup}>
           <Icon name="heart" color="#D87773" fill="#D87773" size={19} />
           <Text style={s.hudText}>{game.hearts}</Text>
@@ -376,6 +402,7 @@ export function Game({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Pause game"
+            onPressIn={feedback}
             onPress={() => togglePause(true)}
             style={{
               minWidth: 44,
@@ -392,12 +419,13 @@ export function Game({
       <View
         style={{
           position: "absolute",
-          left: 15,
-          top: 70,
+          left: insets.left + 15,
+          top: insets.top + 70,
           flexDirection: "row",
           gap: 7,
         }}
       >
+        <Text style={[s.hudText, { marginRight: 8 }]}>LEVEL {level.id}</Text>
         {[0, 1, 2].map((i) => (
           <Icon
             key={i}
@@ -412,6 +440,11 @@ export function Game({
         pointerEvents="box-none"
         style={[
           s.controls,
+          {
+            left: insets.left + 18,
+            right: insets.right + 18,
+            bottom: Math.max(12, insets.bottom + 6),
+          },
           settings.leftHanded && { flexDirection: "row-reverse" },
         ]}
       >

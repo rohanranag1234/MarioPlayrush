@@ -14,6 +14,9 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import * as ScreenOrientation from "expo-screen-orientation";
+import { NavigationBar } from "expo-navigation-bar";
+import { FeedbackContext } from "./src/components/Feedback";
+import { LevelComplete } from "./src/screens/LevelComplete";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { Fredoka_600SemiBold } from "@expo-google-fonts/fredoka";
@@ -97,6 +100,7 @@ function MobileApp() {
   const [screen, setScreen] = useState("Home");
   const [world, setWorld] = useState(1);
   const [level, setLevel] = useState<Level | null>(null);
+  const [runId, setRunId] = useState(0);
   const [intro, setIntro] = useState<number | null>(null);
   const [power, setPower] = useState<string | undefined>();
   const [result, setResult] = useState<Result | null>(null);
@@ -107,7 +111,7 @@ function MobileApp() {
   const [orientationError, setOrientationError] = useState(false);
   const orientationQueue = useRef(Promise.resolve());
   const inGame = screen === "Game" && level !== null;
-  const landscape = inGame && !result;
+  const landscape = inGame;
   useEffect(() => {
     orientationQueue.current = orientationQueue.current
       .then(() =>
@@ -182,9 +186,9 @@ function MobileApp() {
     setPower(undefined);
     setIntro(id);
   };
-  const spendLife = () => {
+  const spendLife = (id = level?.id || intro || 1) => {
     const current = refillLives(pRef.current);
-    if ((level?.id || intro || 1) <= 10) return true;
+    if (id <= 10) return true;
     if (current.lives <= 0) {
       notify(
         "Your hearts need a little rest. A life refills every 20 minutes, or you can pick one up in the shop.",
@@ -201,7 +205,7 @@ function MobileApp() {
     return true;
   };
   const start = () => {
-    if (!intro || !spendLife()) return;
+    if (!intro || !spendLife(intro)) return;
     const id = intro;
     if (power)
       update((prev) => ({
@@ -223,6 +227,8 @@ function MobileApp() {
           }
         : prev.levels,
     }));
+    setResult(null);
+    setRunId((previous) => previous + 1);
     setLevel(makeLevel(id));
     setIntro(null);
     setScreen("Game");
@@ -262,491 +268,433 @@ function MobileApp() {
     setReset(false);
   };
   return (
-    <View style={[s.app, safeAreaPadding]}>
-      {appReady && (
-        <View
-          style={{ flex: 1 }}
-          accessibilityElementsHidden={!introComplete}
-          importantForAccessibility={
-            introComplete ? "auto" : "no-hide-descendants"
-          }
-        >
-          <StatusBar style="dark" hidden={landscape} />
-          {inGame ? (
-            <View style={{ flex: 1 }}>
-              {orientationError && (
-                <Text style={s.notice}>
-                  Turn your phone sideways for the best view.
-                </Text>
-              )}
-              <Game
-                key={level.id}
-                level={level}
-                skin={skin}
-                settings={p.settings}
-                power={power}
-                onComplete={finish}
-                onRestart={spendLife}
-                onRetry={spendLife}
-                onQuit={() => {
-                  setWorld(level.world.id);
-                  navigate("World map");
-                }}
-              />
-            </View>
-          ) : (
-            <>
-              <View style={s.topbar}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Run for Life home"
-                  onPress={() => navigate("Home")}
-                  style={s.brand}
-                >
-                  <Fox size={37} />
-                  <Text
-                    style={s.brandTitle}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
-                  >
-                    Run for <Text style={{ color: c.orange }}>Life</Text>
+    <FeedbackContext.Provider value={p.settings.vibration}>
+      <View style={[s.app, !landscape && safeAreaPadding]}>
+        <NavigationBar hidden={landscape} />
+        {appReady && (
+          <View
+            style={{ flex: 1 }}
+            accessibilityElementsHidden={!introComplete}
+            importantForAccessibility={
+              introComplete ? "auto" : "no-hide-descendants"
+            }
+          >
+            <StatusBar style="dark" hidden={landscape} />
+            {inGame ? (
+              <View style={{ flex: 1 }}>
+                {orientationError && (
+                  <Text style={s.notice}>
+                    Turn your phone sideways for the best view.
                   </Text>
-                </Pressable>
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
-                >
+                )}
+                <Game
+                  key={`${level.id}-${runId}`}
+                  level={level}
+                  skin={skin}
+                  settings={p.settings}
+                  power={power}
+                  onComplete={finish}
+                  onRestart={spendLife}
+                  onRetry={spendLife}
+                  onQuit={() => {
+                    setWorld(level.world.id);
+                    navigate("World map");
+                  }}
+                />
+              </View>
+            ) : (
+              <>
+                <View style={s.topbar}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`${p.coins} coins. Open shop`}
-                    onPress={() => navigate("Shop")}
-                    style={s.counter}
+                    accessibilityLabel="Run for Life home"
+                    onPress={() => navigate("Home")}
+                    style={s.brand}
                   >
-                    <Coin size={18} />
-                    <Text style={s.counterText}>
-                      {p.coins.toLocaleString()}
+                    <Fox size={37} />
+                    <Text
+                      style={s.brandTitle}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                    >
+                      Run for <Text style={{ color: c.orange }}>Life</Text>
                     </Text>
                   </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`${p.lives} lives. Refill information`}
-                    style={[s.counter, { backgroundColor: "#F9EEEE" }]}
-                    onPress={() =>
-                      notify(
-                        `${p.lives} of 5 lives. One life refills every 20 minutes. The first ten levels are free to play.`,
-                      )
-                    }
-                  >
-                    <Icon
-                      name="heart"
-                      color="#D78180"
-                      fill="#D78180"
-                      size={17}
-                    />
-                    <Text style={s.counterText}>{p.lives}</Text>
-                  </Pressable>
-                </View>
-              </View>
-              {saveError && (
-                <Text style={s.notice}>
-                  Progress is not saving. Check device storage or reset local
-                  data in Settings.
-                </Text>
-              )}
-              <ScrollView ref={scroll} contentContainerStyle={s.content}>
-                {screen === "Home" && (
-                  <Home
-                    progress={p}
-                    navigate={navigate}
-                    onPlay={() => openLevel(p.highest)}
-                    onWorld={(id) => {
-                      setWorld(id);
-                      navigate("World map");
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
                     }}
-                    onDaily={() => navigate("Daily rewards")}
-                  />
-                )}
-                {screen === "World map" && (
-                  <WorldMap
-                    progress={p}
-                    world={world}
-                    setWorld={setWorld}
-                    onLevel={openLevel}
-                  />
-                )}
-                {screen === "Shop" && <Shop {...meta} />}
-                {screen === "Daily rewards" && <Daily {...meta} />}
-                {screen === "Achievements" && <Achievements {...meta} />}
-                {screen === "Leaderboard" && <Leaderboard {...meta} />}
-                {screen === "Profile" && <Profile {...meta} />}
-                {screen === "Settings" && (
-                  <SettingsScreen {...meta} onReset={() => setReset(true)} />
-                )}
-                {screen === "More" && (
-                  <View style={{ gap: 18 }}>
-                    <Label>YOUR ADVENTURE KIT</Label>
-                    <Title>A little more to explore</Title>
-                    {[
-                      ["Daily rewards", "gift"],
-                      ["Leaderboard", "trophy"],
-                      ["Achievements", "medal"],
-                      ["Settings", "settings"],
-                      ["How to play", "help"],
-                    ].map(([name, icon]) => (
-                      <Pressable
-                        key={name}
-                        accessibilityRole="button"
-                        onPress={() =>
-                          name === "How to play"
-                            ? setHelp(true)
-                            : navigate(name)
-                        }
-                        style={s.menuRow}
-                      >
-                        <Icon name={icon} color={c.green} />
-                        <Text style={s.menuText}>{name}</Text>
-                        <Icon name="chevron" size={17} />
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </ScrollView>
-              <View style={s.tabbar} accessibilityRole="tablist">
-                {tabs.map(([name, icon, label]) => {
-                  const selected =
-                    screen === name ||
-                    (name === "More" &&
-                      [
-                        "Daily rewards",
-                        "Leaderboard",
-                        "Achievements",
-                        "Settings",
-                      ].includes(screen));
-                  return (
-                    <Pressable
-                      key={name}
-                      accessibilityRole="tab"
-                      accessibilityLabel={label}
-                      accessibilityState={{ selected }}
-                      onPress={() => navigate(name)}
-                      style={({ pressed }) => [
-                        s.tab,
-                        pressed && { opacity: 0.6 },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          s.tabIcon,
-                          selected && { backgroundColor: c.mint },
-                        ]}
-                      >
-                        <Icon
-                          name={icon}
-                          color={selected ? c.green : c.muted}
-                          size={22}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          s.tabLabel,
-                          { color: selected ? c.green : c.muted },
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
-          )}
-          <Modal
-            visible={
-              introComplete &&
-              Boolean(message || intro || result || help || reset)
-            }
-            animationType={p.settings.reducedMotion ? "none" : "fade"}
-            transparent
-            supportedOrientations={[
-              "portrait",
-              "landscape-left",
-              "landscape-right",
-            ]}
-            onRequestClose={() => {
-              if (result) {
-                setResult(null);
-                navigate("World map");
-              } else closeModal();
-            }}
-          >
-            <View style={s.modalBackdrop}>
-              <ScrollView
-                style={{ maxHeight: "92%", width: "100%", maxWidth: 500 }}
-                contentContainerStyle={{ flexGrow: 1 }}
-              >
-                <View style={s.modalCard}>
-                  {!result && (
+                  >
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Close dialog"
-                      onPress={closeModal}
-                      style={{
-                        position: "absolute",
-                        top: 17,
-                        right: 17,
-                        zIndex: 2,
-                        padding: 6,
-                      }}
+                      accessibilityLabel={`${p.coins} coins. Open shop`}
+                      onPress={() => navigate("Shop")}
+                      style={s.counter}
                     >
-                      <Icon name="close" size={19} color={c.muted} />
+                      <Coin size={18} />
+                      <Text style={s.counterText}>
+                        {p.coins.toLocaleString()}
+                      </Text>
                     </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${p.lives} lives. Refill information`}
+                      style={[s.counter, { backgroundColor: "#F9EEEE" }]}
+                      onPress={() =>
+                        notify(
+                          `${p.lives} of 5 lives. One life refills every 20 minutes. The first ten levels are free to play.`,
+                        )
+                      }
+                    >
+                      <Icon
+                        name="heart"
+                        color="#D78180"
+                        fill="#D78180"
+                        size={17}
+                      />
+                      <Text style={s.counterText}>{p.lives}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+                {saveError && (
+                  <Text style={s.notice}>
+                    Progress is not saving. Check device storage or reset local
+                    data in Settings.
+                  </Text>
+                )}
+                <ScrollView ref={scroll} contentContainerStyle={s.content}>
+                  {screen === "Home" && (
+                    <Home
+                      progress={p}
+                      navigate={navigate}
+                      onPlay={() => openLevel(p.highest)}
+                      onWorld={(id) => {
+                        setWorld(id);
+                        navigate("World map");
+                      }}
+                      onDaily={() => navigate("Daily rewards")}
+                    />
                   )}
-                  {message ? (
-                    <>
-                      <View style={s.modalIcon}>
-                        <Icon name="leaf" size={30} color={c.green} />
-                      </View>
-                      <Title style={{ textAlign: "center" }}>
-                        A note from the trail
-                      </Title>
-                      <Body style={{ textAlign: "center" }}>{message}</Body>
-                      <Button onPress={() => setMessage(null)}>Got it</Button>
-                    </>
-                  ) : reset ? (
-                    <>
-                      <Icon name="leaf" size={38} color={c.orange} />
-                      <Title>Start a fresh adventure?</Title>
-                      <Body style={{ textAlign: "center" }}>
-                        This deletes your local scores, coins, inventory and
-                        nickname. It cannot be undone.
-                      </Body>
-                      <Button
-                        onPress={async () => {
-                          await saveQueue.current;
-                          try {
-                            await localProgressService.delete();
-                            storageFault.current = false;
-                            lastSaved.current = "";
-                            setP(initialProgress());
-                            setSaveError(false);
-                            setReset(false);
-                            navigate("Home");
-                          } catch {
-                            notify(
-                              "Could not delete your local data. Please try again.",
-                            );
+                  {screen === "World map" && (
+                    <WorldMap
+                      progress={p}
+                      world={world}
+                      setWorld={setWorld}
+                      onLevel={openLevel}
+                    />
+                  )}
+                  {screen === "Shop" && <Shop {...meta} />}
+                  {screen === "Daily rewards" && <Daily {...meta} />}
+                  {screen === "Achievements" && <Achievements {...meta} />}
+                  {screen === "Leaderboard" && <Leaderboard {...meta} />}
+                  {screen === "Profile" && <Profile {...meta} />}
+                  {screen === "Settings" && (
+                    <SettingsScreen {...meta} onReset={() => setReset(true)} />
+                  )}
+                  {screen === "More" && (
+                    <View style={{ gap: 18 }}>
+                      <Label>YOUR ADVENTURE KIT</Label>
+                      <Title>A little more to explore</Title>
+                      {[
+                        ["Daily rewards", "gift"],
+                        ["Leaderboard", "trophy"],
+                        ["Achievements", "medal"],
+                        ["Settings", "settings"],
+                        ["How to play", "help"],
+                      ].map(([name, icon]) => (
+                        <Pressable
+                          key={name}
+                          accessibilityRole="button"
+                          onPress={() =>
+                            name === "How to play"
+                              ? setHelp(true)
+                              : navigate(name)
                           }
-                        }}
+                          style={s.menuRow}
+                        >
+                          <Icon name={icon} color={c.green} />
+                          <Text style={s.menuText}>{name}</Text>
+                          <Icon name="chevron" size={17} />
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </ScrollView>
+                <View style={s.tabbar} accessibilityRole="tablist">
+                  {tabs.map(([name, icon, label]) => {
+                    const selected =
+                      screen === name ||
+                      (name === "More" &&
+                        [
+                          "Daily rewards",
+                          "Leaderboard",
+                          "Achievements",
+                          "Settings",
+                        ].includes(screen));
+                    return (
+                      <Pressable
+                        key={name}
+                        accessibilityRole="tab"
+                        accessibilityLabel={label}
+                        accessibilityState={{ selected }}
+                        onPress={() => navigate(name)}
+                        style={({ pressed }) => [
+                          s.tab,
+                          pressed && { opacity: 0.6 },
+                        ]}
                       >
-                        Delete and start fresh
-                      </Button>
-                      <Button secondary onPress={() => setReset(false)}>
-                        Keep my adventure
-                      </Button>
-                    </>
-                  ) : help ? (
-                    <>
-                      <Fox size={100} />
-                      <Title>A few tips for curious paws</Title>
-                      <Body style={{ textAlign: "center" }}>
-                        Move with the left and right buttons. Tap the up arrow
-                        to jump. Hold a direction while tapping jump. Gameplay
-                        turns sideways to give your thumbs more room.
-                        {"\n\n"}Stomp creatures from above, collect coins, and
-                        find all three star tokens. Reach the green flag before
-                        time runs out.{"\n\n"}Earn 2 stars with two tokens OR
-                        the score target. Earn 3 stars with all tokens AND the
-                        target.{"\n\n"}
-                        The first ten levels are free to retry. After that, each
-                        start or retry uses a life.
-                      </Body>
-                      <Button onPress={() => setHelp(false)}>
-                        Ready for adventure
-                      </Button>
-                    </>
-                  ) : intro ? (
-                    <>
-                      <View
-                        style={{
-                          height: 160,
-                          width: "100%",
-                          overflow: "hidden",
-                          borderRadius: 14,
-                        }}
-                      >
-                        <Landscape world={Math.ceil(intro / 10)} hero />
-                      </View>
-                      <Label>
-                        WORLD {Math.ceil(intro / 10)} · LEVEL {intro}
-                      </Label>
-                      <Title style={{ textAlign: "center" }}>
-                        {makeLevel(intro).name}
-                      </Title>
-                      <Stars count={p.levels[intro]?.stars || 0} size={27} />
-                      <Body style={{ textAlign: "center" }}>
-                        Find three star tokens and reach the flag.{"\n"}Score
-                        target: {makeLevel(intro).target.toLocaleString()}{" "}
-                        points
-                        {p.levels[intro]
-                          ? `\nPersonal best: ${p.levels[intro].score.toLocaleString()}`
-                          : ""}
-                      </Body>
-                      {(p.inventory.boots > 0 || p.inventory.shield > 0) && (
                         <View
+                          style={[
+                            s.tabIcon,
+                            selected && { backgroundColor: c.mint },
+                          ]}
+                        >
+                          <Icon
+                            name={icon}
+                            color={selected ? c.green : c.muted}
+                            size={22}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            s.tabLabel,
+                            { color: selected ? c.green : c.muted },
+                          ]}
+                        >
+                          {label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+            <Modal
+              visible={
+                introComplete &&
+                Boolean(message || intro || result || help || reset)
+              }
+              animationType={p.settings.reducedMotion ? "none" : "fade"}
+              transparent
+              statusBarTranslucent
+              navigationBarTranslucent
+              supportedOrientations={
+                landscape ? ["landscape-left", "landscape-right"] : ["portrait"]
+              }
+              onRequestClose={() => {
+                if (result && !intro && !message) {
+                  setResult(null);
+                  navigate("World map");
+                } else closeModal();
+              }}
+            >
+              <View
+                style={[
+                  s.modalBackdrop,
+                  landscape && {
+                    paddingTop: insets.top + 8,
+                    paddingBottom: insets.bottom + 8,
+                    paddingHorizontal: Math.max(12, insets.left, insets.right),
+                  },
+                ]}
+              >
+                {result && level && !message && !intro ? (
+                  <LevelComplete
+                    level={level}
+                    result={result}
+                    skin={skin}
+                    newBest={newBest}
+                    onNext={() => {
+                      if (level.id === 100) {
+                        navigate("World map");
+                        return;
+                      }
+                      openLevel(level.id + 1);
+                    }}
+                    onReplay={() => {
+                      openLevel(level.id);
+                    }}
+                    onMap={() => {
+                      setWorld(level.world.id);
+                      navigate("World map");
+                    }}
+                  />
+                ) : (
+                  <ScrollView
+                    style={{ maxHeight: "92%", width: "100%", maxWidth: 500 }}
+                    contentContainerStyle={{ flexGrow: 1 }}
+                  >
+                    <View style={s.modalCard}>
+                      {(!result || intro || message) && (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel="Close dialog"
+                          onPress={closeModal}
                           style={{
-                            flexDirection: "row",
-                            gap: 10,
-                            flexWrap: "wrap",
+                            position: "absolute",
+                            top: 17,
+                            right: 17,
+                            zIndex: 2,
+                            padding: 6,
                           }}
                         >
-                          {["boots", "shield"]
-                            .filter((id) => p.inventory[id] > 0)
-                            .map((id) => (
-                              <Button
-                                key={id}
-                                secondary={power !== id}
-                                onPress={() =>
-                                  setPower(power === id ? undefined : id)
-                                }
-                              >
-                                {id === "boots"
-                                  ? "Rocket boots"
-                                  : "Star shield"}{" "}
-                                ({p.inventory[id]})
-                              </Button>
-                            ))}
-                        </View>
+                          <Icon name="close" size={19} color={c.muted} />
+                        </Pressable>
                       )}
-                      <Button icon="play" onPress={start}>
-                        Start adventure
-                      </Button>
-                      <Label>
-                        {intro <= 10
-                          ? "FREE PLAY · NO HEARTS NEEDED"
-                          : "ONE HEART · A WHOLE NEW ADVENTURE"}
-                      </Label>
-                    </>
-                  ) : result && level ? (
-                    <>
-                      <Fox size={100} color={skin} />
-                      <Label>
-                        {level.id % 10 === 0
-                          ? "WORLD COMPLETE!"
-                          : newBest
-                            ? "A NEW PERSONAL BEST!"
-                            : "A LITTLE MORE BRAVE"}
-                      </Label>
-                      <Title>
-                        {level.id % 10 === 0
-                          ? "Guardian defeated!"
-                          : "You did it, little fox!"}
-                      </Title>
-                      <Stars count={result.stars} size={34} />
-                      <Title style={{ fontSize: 43 }}>
-                        {result.score.toLocaleString()}{" "}
-                        <Text style={{ fontSize: 15 }}>PTS</Text>
-                      </Title>
-                      <View
-                        style={{
-                          width: "100%",
-                          gap: 8,
-                          padding: 18,
-                          backgroundColor: "#F4F6EF",
-                          borderRadius: 12,
-                        }}
-                      >
-                        {Object.entries(result.breakdown)
-                          .filter(([, n]) => n > 0)
-                          .map(([k, n]) => (
+                      {message ? (
+                        <>
+                          <View style={s.modalIcon}>
+                            <Icon name="leaf" size={30} color={c.green} />
+                          </View>
+                          <Title style={{ textAlign: "center" }}>
+                            A note from the trail
+                          </Title>
+                          <Body style={{ textAlign: "center" }}>{message}</Body>
+                          <Button onPress={() => setMessage(null)}>
+                            Got it
+                          </Button>
+                        </>
+                      ) : reset ? (
+                        <>
+                          <Icon name="leaf" size={38} color={c.orange} />
+                          <Title>Start a fresh adventure?</Title>
+                          <Body style={{ textAlign: "center" }}>
+                            This deletes your local scores, coins, inventory and
+                            nickname. It cannot be undone.
+                          </Body>
+                          <Button
+                            onPress={async () => {
+                              await saveQueue.current;
+                              try {
+                                await localProgressService.delete();
+                                storageFault.current = false;
+                                lastSaved.current = "";
+                                setP(initialProgress());
+                                setSaveError(false);
+                                setReset(false);
+                                navigate("Home");
+                              } catch {
+                                notify(
+                                  "Could not delete your local data. Please try again.",
+                                );
+                              }
+                            }}
+                          >
+                            Delete and start fresh
+                          </Button>
+                          <Button secondary onPress={() => setReset(false)}>
+                            Keep my adventure
+                          </Button>
+                        </>
+                      ) : help ? (
+                        <>
+                          <Fox size={100} />
+                          <Title>A few tips for curious paws</Title>
+                          <Body style={{ textAlign: "center" }}>
+                            Move with the left and right buttons. Tap the up
+                            arrow to jump. Hold a direction while tapping jump.
+                            Gameplay turns sideways to give your thumbs more
+                            room.
+                            {"\n\n"}Stomp creatures from above, collect coins,
+                            and find all three star tokens. Reach the green flag
+                            before time runs out.{"\n\n"}Earn 2 stars with two
+                            tokens OR the score target. Earn 3 stars with all
+                            tokens AND the target.{"\n\n"}
+                            The first ten levels are free to retry. After that,
+                            each start or retry uses a life.
+                          </Body>
+                          <Button onPress={() => setHelp(false)}>
+                            Ready for adventure
+                          </Button>
+                        </>
+                      ) : intro ? (
+                        <>
+                          <View
+                            style={{
+                              height: 160,
+                              width: "100%",
+                              overflow: "hidden",
+                              borderRadius: 14,
+                            }}
+                          >
+                            <Landscape world={Math.ceil(intro / 10)} hero />
+                          </View>
+                          <Label>
+                            WORLD {Math.ceil(intro / 10)} · LEVEL {intro}
+                          </Label>
+                          <Title style={{ textAlign: "center" }}>
+                            {makeLevel(intro).name}
+                          </Title>
+                          <Stars
+                            count={p.levels[intro]?.stars || 0}
+                            size={27}
+                          />
+                          <Body style={{ textAlign: "center" }}>
+                            {makeLevel(intro).challenge}
+                            {"\n"}Find three star tokens and reach the flag.
+                            {"\n"}Score target:{" "}
+                            {makeLevel(intro).target.toLocaleString()} points
+                            {p.levels[intro]
+                              ? `\nPersonal best: ${p.levels[intro].score.toLocaleString()}`
+                              : ""}
+                          </Body>
+                          {(p.inventory.boots > 0 ||
+                            p.inventory.shield > 0) && (
                             <View
-                              key={k}
                               style={{
                                 flexDirection: "row",
-                                justifyContent: "space-between",
+                                gap: 10,
+                                flexWrap: "wrap",
                               }}
                             >
-                              <Body style={{ fontSize: 12 }}>
-                                {
-                                  {
-                                    coins: "Coins & gems",
-                                    enemies: "Woodland stomps",
-                                    tokens: "Star tokens",
-                                    powerUps: "Power-ups",
-                                    secrets: "Secret discoveries",
-                                    checkpoints: "Checkpoint",
-                                    finish: "Flag & height bonus",
-                                    time: "Time bonus",
-                                    noDamage: "No-damage bonus",
-                                    boss: "Guardian defeated",
-                                  }[k]
-                                }
-                              </Body>
-                              <Text
-                                style={{
-                                  fontFamily: f.extra,
-                                  color: c.ink,
-                                  fontSize: 12,
-                                }}
-                              >
-                                +{n.toLocaleString()}
-                              </Text>
+                              {["boots", "shield"]
+                                .filter((id) => p.inventory[id] > 0)
+                                .map((id) => (
+                                  <Button
+                                    key={id}
+                                    secondary={power !== id}
+                                    onPress={() =>
+                                      setPower(power === id ? undefined : id)
+                                    }
+                                  >
+                                    {id === "boots"
+                                      ? "Rocket boots"
+                                      : "Star shield"}{" "}
+                                    ({p.inventory[id]})
+                                  </Button>
+                                ))}
                             </View>
-                          ))}
-                      </View>
-                      <Currency amount={result.coins} />
-                      <Button
-                        icon="arrow"
-                        onPress={() => {
-                          const next = level.id + 1;
-                          setResult(null);
-                          setWorld(Math.min(10, Math.ceil(next / 10)));
-                          navigate("World map");
-                          if (next <= 100) openLevel(next);
-                        }}
-                      >
-                        {level.id === 100
-                          ? "Adventure complete!"
-                          : "Next adventure"}
-                      </Button>
-                      <View style={{ flexDirection: "row", gap: 12 }}>
-                        <Button
-                          secondary
-                          onPress={() => {
-                            setResult(null);
-                            setLevel(null);
-                            setScreen("World map");
-                            openLevel(level.id);
-                          }}
-                        >
-                          Play again
-                        </Button>
-                        <Button
-                          secondary
-                          onPress={() => {
-                            setResult(null);
-                            navigate("World map");
-                          }}
-                        >
-                          World map
-                        </Button>
-                      </View>
-                    </>
-                  ) : null}
-                </View>
-              </ScrollView>
-            </View>
-          </Modal>
-        </View>
-      )}
-      {!introComplete && (
-        <LaunchIntro
-          ready={appReady}
-          fontsReady={loaded}
-          reducedMotion={p.settings.reducedMotion}
-          onFinish={() => setIntroComplete(true)}
-        />
-      )}
-    </View>
+                          )}
+                          <Button icon="play" onPress={start}>
+                            Start adventure
+                          </Button>
+                          <Label>
+                            {intro <= 10
+                              ? "FREE PLAY · NO HEARTS NEEDED"
+                              : "ONE HEART · A WHOLE NEW ADVENTURE"}
+                          </Label>
+                        </>
+                      ) : null}
+                    </View>
+                  </ScrollView>
+                )}
+              </View>
+            </Modal>
+          </View>
+        )}
+        {!introComplete && (
+          <LaunchIntro
+            ready={appReady}
+            fontsReady={loaded}
+            reducedMotion={p.settings.reducedMotion}
+            onFinish={() => setIntroComplete(true)}
+          />
+        )}
+      </View>
+    </FeedbackContext.Provider>
   );
 }
 const s = StyleSheet.create({

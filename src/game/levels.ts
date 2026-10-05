@@ -112,13 +112,19 @@ export type ItemKind =
   | "heart"
   | "secret";
 export type Item = { id: number; x: number; y: number; kind: ItemKind };
+export type EnemyKind = "crawler" | "hunter" | "brute" | "boss";
 export type Enemy = {
   x: number;
   y: number;
   min: number;
   max: number;
+  kind: EnemyKind;
+  size: number;
+  speed: number;
+  health: number;
   boss?: boolean;
 };
+export type Hazard = { x: number; y: number; w: number; h: number };
 export type Level = {
   id: number;
   name: string;
@@ -128,104 +134,217 @@ export type Level = {
   platforms: Platform[];
   items: Item[];
   enemies: Enemy[];
+  hazards: Hazard[];
   checkpoint: number;
   flag: number;
   target: number;
+  challenge: string;
+  difficulty: number;
+  scenery: number;
 };
-// The ten first-world layouts are authored here. Later worlds remix these layouts;
-// they are playable prototypes, pending bespoke level design and world mechanics.
-const layouts = [
-  [330, 550, 850, 1140, 1480, 1780, 2130],
-  [290, 520, 780, 1080, 1430, 1740, 2080],
-  [360, 640, 880, 1160, 1450, 1820, 2130],
-  [300, 560, 920, 1200, 1510, 1760, 2110],
-  [280, 580, 870, 1170, 1460, 1800, 2150],
-  [360, 610, 840, 1190, 1500, 1810, 2130],
-  [320, 590, 890, 1220, 1490, 1790, 2100],
-  [270, 550, 870, 1190, 1450, 1760, 2110],
-  [350, 630, 930, 1170, 1480, 1830, 2110],
-  [310, 560, 850, 1110, 1420, 1680, 2040],
-];
-const names = [
-  "A Fresh Start",
-  "Over the Hill",
-  "The Hidden Grove",
-  "Hop, Skip & Jump",
-  "Berry Beautiful",
-  "The Long Way Home",
-  "A Fox in the Forest",
-  "Higher Ground",
-  "One Last Leap",
-  "The Meadow Guardian",
-];
 import { scoreTarget } from "./scoring";
+
+const courses = [
+  {
+    name: "Broken Trail",
+    hint: "Watch the gaps. Keep your jumps close to the edge.",
+  },
+  {
+    name: "Ridge Runner",
+    hint: "Climb the staggered ledges for hidden treasure.",
+  },
+  { name: "Thorn Passage", hint: "Clear the spike beds with a running jump." },
+  {
+    name: "Monster March",
+    hint: "Hunters charge when you get close. Stomp from above.",
+  },
+  { name: "Highwire Hollow", hint: "Narrow ledges reward precise landings." },
+];
+function randomFor(id: number) {
+  let seed = Math.imul(id, 2654435761) >>> 0;
+  return () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+}
+
+// Stable, distinct courses: every ID changes terrain, treasure, patrols and pacing.
+// This is deterministic level generation, not a claim of 100 hand-authored stages.
 export function makeLevel(id: number): Level {
-  const world = WORLDS[Math.floor((id - 1) / 10)];
-  const slot = (id - 1) % 10;
-  const xs = layouts[slot];
-  const platforms: Platform[] = [
-    { x: 0, y: 360, w: 980, h: 100 },
-    { x: 1060, y: 360, w: 850, h: 100 },
-    { x: 1990, y: 360, w: 810, h: 100 },
-    ...xs.map((x, i) => ({
-      x,
-      y: i % 3 === 1 ? 205 : 270,
-      w: i % 3 === 1 ? 150 : 180,
-      h: 22,
-    })),
-  ];
-  let next = 0;
-  const items: Item[] = [];
-  xs.forEach((x, i) => {
-    for (let j = 0; j < 3; j++)
-      items.push({
-        id: next++,
-        x: x + 30 + j * 40,
-        y: (i % 3 === 1 ? 205 : 270) - 35,
-        kind: "coin",
-      });
+  if (!Number.isInteger(id) || id < 1 || id > 100)
+    throw new RangeError("Level must be 1–100");
+  const random = randomFor(id),
+    world = WORLDS[Math.floor((id - 1) / 10)];
+  const course = courses[(id - 1) % courses.length];
+  const width = 2600 + id * 36;
+  const gapCount = id === 1 ? 1 : 2 + Math.floor((id - 2) / 14);
+  const gapWidth = 70 + Math.floor(id * 0.65);
+  const gaps = Array.from(
+    { length: gapCount },
+    () => gapWidth + Math.floor(random() * 15),
+  );
+  const weights = Array.from(
+    { length: gapCount + 1 },
+    () => 0.9 + random() * 0.2,
+  );
+  const available = width - gaps.reduce((sum, g) => sum + g, 0),
+    sum = weights.reduce((n, w) => n + w, 0);
+  const floors: Platform[] = [];
+  let cursor = 0;
+  weights.forEach((weight, i) => {
+    const w =
+      i === gapCount ? width - cursor : Math.floor((available * weight) / sum);
+    floors.push({ x: cursor, y: 360, w, h: 100 });
+    cursor += w + (gaps[i] || 0);
   });
-  for (let i = 0; i < 18; i++)
+  const platforms: Platform[] = [...floors];
+  const checkpointFloor = floors[Math.floor(floors.length / 2)];
+  const checkpoint = checkpointFloor.x + 55;
+  const flag = width - 90;
+  const platformWidth = Math.max(110, 190 - Math.floor(id * 0.75));
+  const ledges: Platform[] = [];
+  floors.forEach((floor, i) => {
+    const count = Math.max(1, Math.floor(floor.w / 330));
+    for (let j = 0; j < count; j++) {
+      const x = floor.x + 100 + (j * (floor.w - 140)) / count;
+      const y = 275 - ((id + i + j) % 3) * 10;
+      const ledge = {
+        x,
+        y,
+        w: Math.min(platformWidth, floor.x + floor.w - x - 30),
+        h: 20,
+      };
+      ledges.push(ledge);
+      platforms.push(ledge);
+      if ((id + i + j) % 3 === 1 && ledge.w >= 130) {
+        platforms.push({
+          x: x + 65,
+          y: y - 70,
+          w: Math.max(90, platformWidth - 45),
+          h: 18,
+        });
+      }
+    }
+  });
+  let itemId = 0;
+  const items: Item[] = [];
+  const add = (x: number, y: number, kind: ItemKind) =>
+    items.push({ id: itemId++, x, y, kind });
+  floors.forEach((floor) => {
+    for (let x = floor.x + 90; x < floor.x + floor.w - 70; x += 76)
+      add(x, 330, items.length % 11 === 10 ? "bigCoin" : "coin");
+  });
+  ledges.forEach((ledge, i) => {
+    for (let x = ledge.x + 24; x < ledge.x + ledge.w - 12; x += 45)
+      add(x, ledge.y - 27, "coin");
+    if (i % 2 === 0) add(ledge.x + ledge.w / 2, ledge.y - 55, "gem");
+  });
+  // Fixed token slots keep repeated runs of these generated courses stable.
+  [0.15, 0.5, 0.85].forEach((ratio, index) => {
+    const ledge =
+      ledges[
+        Math.min(ledges.length - 1, Math.floor((ledges.length - 1) * ratio))
+      ];
     items.push({
-      id: next++,
-      x: 180 + i * 130,
-      y: 330,
-      kind: i % 9 === 8 ? "bigCoin" : "coin",
+      id: 1000 + index,
+      x: ledge.x + ledge.w * 0.6,
+      y: ledge.y - 28,
+      kind: "token",
     });
-  [0, 3, 6].forEach((i) =>
-    items.push({ id: next++, x: xs[i] + 80, y: 225, kind: "token" }),
+  });
+  add(
+    230,
+    330,
+    (["berry", "boots", "shield", "magnet", "heart"] as ItemKind[])[
+      (id - 1) % 5
+    ],
   );
-  items.push(
-    { id: next++, x: xs[1] + 80, y: 165, kind: "gem" },
-    {
-      id: next++,
-      x: 740,
-      y: 325,
-      kind: (["berry", "boots", "shield", "magnet", "heart"] as ItemKind[])[
-        slot % 5
-      ],
-    },
-    { id: next++, x: xs[5] + 70, y: 230, kind: "secret" },
-  );
-  const enemies: Enemy[] = [650, 1280, 1650, 2270].map((x) => ({
-    x,
-    y: 334,
-    min: x - 70,
-    max: x + 70,
-  }));
-  if (id % 10 === 0)
-    enemies.push({ x: 2520, y: 306, min: 2400, max: 2640, boss: true });
+  add(checkpoint + 25, 330, "berry");
+  const secret = platforms.filter((p) => p.h < 30).at(-1)!;
+  add(secret.x + secret.w / 2, secret.y - 28, "secret");
+  // Later targets have enough optional treasure to support three-star runs.
+  const gems = Math.ceil(Math.max(0, scoreTarget(id) - 6500) / 250);
+  for (let i = 0; i < gems; i++) {
+    const ledge = ledges[i % ledges.length];
+    const row = Math.floor(i / ledges.length);
+    add(
+      ledge.x + 20 + ((row * 22) % (ledge.w - 30)),
+      ledge.y - 30 - (row % 2) * 22,
+      "gem",
+    );
+  }
+  const enemies: Enemy[] = [];
+  const enemyCount = 2 + Math.floor(id / 5);
+  for (let i = 0; i < enemyCount; i++) {
+    const floor = floors[i % floors.length];
+    const rank = Math.floor(i / floors.length);
+    const x = floor.x + floor.w * (0.46 + rank * 0.14);
+    if (x > flag - 180 || Math.abs(x - checkpoint) < 140) continue;
+    const kind: EnemyKind =
+      id >= 12 && (i + id) % 4 === 0
+        ? "brute"
+        : id >= 4 && (i === 0 || (i + id) % 3 === 0)
+          ? "hunter"
+          : "crawler";
+    const size = kind === "brute" ? 42 : kind === "hunter" ? 34 : 30;
+    enemies.push({
+      x,
+      y: 360 - size,
+      min: Math.max(floor.x + 90, x - 65),
+      max: Math.min(floor.x + floor.w - size - 50, x + 65),
+      kind,
+      size,
+      speed: 46 + id * 1.05,
+      health: kind === "brute" ? 2 : 1,
+    });
+  }
+  if (id % 10 === 0) {
+    const floor = floors.at(-1)!;
+    enemies.push({
+      x: width - 250,
+      y: 300,
+      min: Math.max(floor.x + 100, width - 365),
+      max: width - 150,
+      kind: "boss",
+      size: 60,
+      speed: 70 + id * 0.7,
+      health: 3 + Math.floor(id / 30),
+      boss: true,
+    });
+  }
+  const hazards: Hazard[] = [];
+  if (id >= 3)
+    floors.forEach((floor, i) => {
+      if ((i + id) % 3 === 0 || id >= 35) {
+        const x = floor.x + floor.w * 0.72,
+          w = 28 + Math.floor(id / 10) * 3;
+        if (
+          x < flag - 150 &&
+          Math.abs(x - checkpoint) > 135 &&
+          floor.x + floor.w - x > w + 65
+        )
+          hazards.push({ x, y: 340, w, h: 20 });
+      }
+    });
   return {
     id,
-    name: world.id === 1 ? names[slot] : `${world.name} ${slot + 1}`,
+    name:
+      id % 10 === 0 ? `${world.name}: Dread Guardian` : `${course.name} ${id}`,
     world,
-    width: 2800,
-    time: id % 10 === 0 ? 240 : 180,
+    width,
+    time: Math.ceil(width / (72 + id * 0.4)) + (id % 10 === 0 ? 70 : 40),
     platforms,
     items,
     enemies,
-    checkpoint: 1370,
-    flag: 2700,
+    hazards,
+    checkpoint,
+    flag,
     target: scoreTarget(id),
+    challenge:
+      id % 10 === 0
+        ? "Defeat the guardian before the flag will open."
+        : course.hint,
+    difficulty: id,
+    scenery: id % 4,
   };
 }
