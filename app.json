@@ -1,21 +1,28 @@
 {
   "expo": {
-    "name": "Rusty Run 100",
-    "slug": "rusty-run-100",
+    "name": "Run for Life",
+    "slug": "run-for-life",
     "version": "1.0.0",
     "orientation": "default",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "requireFullScreen": true,
+      "bundleIdentifier": "com.rustyrun.adventure"
     },
     "android": {
       "package": "com.rustyrun.adventure"
     },
-    "web": {
-      "name": "Rusty Run 100",
-      "description": "A little fox. A big adventure. Explore, jump and discover in Rusty Run 100."
-    },
-    "plugins": ["expo-font"]
+    "plugins": [
+      "expo-font",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT_UP"
+        }
+      ]
+    ],
+    "platforms": ["ios", "android"]
   }
 }

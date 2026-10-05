@@ -1,5 +1,5 @@
 {
-  "name": "rusty-run-100",
+  "name": "run-for-life",
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
@@ -8,12 +8,12 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.26",
     "expo-font": "~57.0.4",
+    "expo-screen-orientation": "~57.0.2",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
-    "react-dom": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-svg": "15.15.4",
-    "react-native-web": "^0.21.2"
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
@@ -26,10 +26,11 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "build": "expo export --platform web"
+    "build": "expo export --platform android --platform ios",
+    "build:android": "expo export --platform android",
+    "build:ios": "expo export --platform ios"
   },
   "private": true
 }

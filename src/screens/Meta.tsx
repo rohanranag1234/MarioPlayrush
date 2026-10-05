@@ -615,14 +615,14 @@ export function SettingsScreen({
         <Title style={{ fontSize: 23 }}>Your adventure data</Title>
         <Body>
           Progress stays on this device. This build has no ads, purchases with
-          real money, analytics, or online accounts. Clearing browser or app
-          storage removes your progress.
+          real money, analytics, or online accounts. Clearing app storage
+          removes your progress.
         </Body>
         <Button
           secondary
           onPress={() =>
             notify(
-              "Rusty Run stores your nickname, scores, inventory, rewards and preferences only on this device. No personal data is sent to a game server in this guest build. Fonts are bundled with the app. Cloud privacy terms will be added before online accounts launch.",
+              "Run for Life stores your nickname, scores, inventory, rewards and preferences only on this device. No personal data is sent to a game server in this guest build. Fonts are bundled with the app. Cloud privacy terms will be added before online accounts launch.",
             )
           }
         >
@@ -633,7 +633,7 @@ export function SettingsScreen({
         </Button>
       </View>
       <Body style={{ fontSize: 12, textAlign: "center" }}>
-        RUSTY RUN 100 · v1.0.0 · Guest adventure build{"\n"}Original artwork.
+        RUN FOR LIFE · v1.0.0 · Guest adventure build{"\n"}Original artwork.
         Made for curious paws.
       </Body>
     </View>

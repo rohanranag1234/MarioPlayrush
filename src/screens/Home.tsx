@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-} from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { colors as c, fonts as f } from "../theme";
 import { Landscape, Fox } from "../components/Art";
 import { Icon, Coin } from "../components/Icon";
@@ -31,8 +25,7 @@ export function Home({
   onWorld: (n: number) => void;
   onDaily: () => void;
 }) {
-  const { width } = useWindowDimensions();
-  const compact = width < 800;
+  const compact = true;
   const stars = totalStars(p);
   const completed = Object.keys(p.levels).length;
   const daily = dailyStatus(p);

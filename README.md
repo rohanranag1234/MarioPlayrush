@@ -1,115 +1,168 @@
-# Rusty Run 100
+# Run for Life — Android & iOS
 
-An original, playable React Native platformer built with Expo, TypeScript and react-native-svg. Runs on Android, iOS and the web. All fox, landscape and interface artwork is drawn in code; no Nintendo assets are used.
+A mobile game written in **React Native + Expo + TypeScript**. This project targets Android phones and iPhones only. It has no web target, desktop layout, browser dependencies or keyboard controls.
 
-## 1. Install
+## 1. Download and install
 
-Use Node.js 24 LTS (tested: 24.14.1) and npm.
+Unzip the source archive, open a terminal in the `run-for-life` folder, and run:
 
 ```bash
 npm ci
 ```
 
-## 2. Run in Expo
+Use Node.js 24 LTS. The project was checked with Node 24.14.1 and npm 11.11.0.
+
+## 2. Run on your phone with Expo
 
 ```bash
 npm start
 ```
 
-Open the QR code with an **Expo Go version that supports SDK 57**. On Android, scan from Expo Go; on iPhone, use the Camera app. Keep your computer and phone on the same network. This guest build uses Expo-compatible modules and needs no Firebase credentials.
+1. Install an **Expo Go version compatible with Expo SDK 57** on your phone.
+2. Keep the phone and your computer on the same Wi-Fi network.
+3. On Android, scan the QR code from Expo Go. On iPhone, scan with the Camera app.
+4. Tap **Let’s go!**, then **Start adventure**.
 
-If your Expo Go version does not support SDK 57, use an SDK 57 development build. Do not downgrade only React Native or only Expo: the versions here are a matched set.
+If your available Expo Go version cannot open SDK 57 projects, use the native build options below. Keep Expo and React Native versions paired as declared in `package.json`.
 
-For an emulator/simulator already installed:
+No backend credentials are needed for the guest game. Expo Go requires Metro to load the development bundle. An installed standalone build includes the game assets and can play locally without Metro.
 
-```bash
-npm run android
-npm run ios  # requires macOS and Xcode
-```
+### Updated safe-area code
 
-## 3. Open on the web
+`App.tsx` now uses a regular React Native `View` with padding from `useSafeAreaInsets()`. `SafeAreaProvider` remains at the root. Application source does not import or render `SafeAreaView`.
 
-```bash
-npm run web
-```
-
-For this workspace's preview:
+After replacing the source, stop the previous Metro process and restart from this project folder:
 
 ```bash
-npx expo start --web --port 8081
+npm ci
+npx expo start --clear
 ```
 
-Open http://localhost:8081. Use **A/D** or **left/right arrows** to move; **Space/W/up arrow** to jump; **Escape** to pause. Touch controls support movement and jumping. Rotate your phone for a wider gameplay view.
+If a deprecation warning still appears, capture its full component stack to identify another local file or dependency using the deprecated React Native component. Warnings are not suppressed by this code.
 
-## 4. Explore what is built
+## Animated app opening
 
-| Step              | Implemented                                                                                                                           |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Visual identity   | Responsive woodland home, original fox/vector landscapes, bundled Fredoka and Nunito Sans fonts                                       |
-| Platformer engine | Gravity, jumping, collisions, pits, moving enemies, stomp chains, checkpoint, timer, flag, camera, pause/retry and three-hit guardian |
-| Scoring           | Central scoring module, action point values, star logic, best scores, currency separated from score, finish/time/no-damage bonuses    |
-| First world       | Ten authored platform arrangements, 3 tokens per level, coins, gems, berry/boots/shield/magnet/heart pickups and a bonus block        |
-| Progression       | 100 level nodes across 10 worlds, sequential and star gates, 5 lives, 20-minute refills, free play for levels 1–10                    |
-| Menus             | Level intro, selectable inventory boost, detailed result breakdown, world map, profile and nickname editing                           |
-| Rewards           | Local shop, six cosmetic skins (four free), power-up inventory, UTC daily streak rewards, four claimable achievements                 |
-| Preferences       | Left-handed controls, large buttons, reduced collectible motion, local-data explanation and deletion                                  |
-| Persistence       | AsyncStorage for progress, inventory, rewards and preferences; backgrounding pauses gameplay                                          |
+On each fresh app launch, **Run for Life** shows an original fox intro with a gentle rise, scale animation, title reveal, and a fade into Home. The animation runs for **2.5 seconds** once bundled fonts and local progress are ready; slower loading holds the branded screen until ready. It runs once per app launch, not on every tab change or return from the background. System Reduce Motion and the saved reduced-motion preference use a simple fade instead of movement.
 
-Coins collected in a run are banked on **successful completion**. Replays add coins, but total points are the sum of each level's best score. Extra life thresholds apply per run and bank on completion. Checkpoint retries preserve already-collected objects and mark the run damaged. Starts and death retries above level 10 cost one life; the first ten levels are free.
+The native OS launch screen appears before React Native starts; the 2.5-second animation runs inside the app. The updated launcher name requires a new Android/iOS build and installation. Expo Go displays the project name, but its own installed launcher label remains Expo Go. Existing application identifiers and local progress keys are retained so this rename does not intentionally reset your save data.
 
-## 5. Current scope
+## 3. Mobile controls and navigation
 
-This is a **playable guest prototype**, not a store-ready release of the entire brief.
+- **Portrait menus:** bottom tabs for Home, Explore, Shop, My fox and More.
+- **More:** daily rewards, leaderboard status, achievements, settings and the touch-control guide.
+- **Landscape gameplay:** starting a level requests landscape orientation and fills the available screen. Returning to menus or showing results requests portrait orientation.
+- **Two-thumb controls:** hold a direction with one thumb and tap jump with the other. Touch cancellation and backgrounding clear held inputs.
+- **Pause:** tap the pause button; Android Back also pauses the game. Returning from another app keeps the game paused.
+- **Comfort:** larger buttons, a left-handed layout and reduced collectible motion are available in Settings.
+- **Safe areas:** the app accounts for notches and the home indicator.
 
-- **Worlds 2–10 remix the ten base layouts.** Names, colors, score targets and enemy speeds change, but bespoke 90 hand-built layouts, world mechanics and ten distinct bosses are still needed. Later score targets need balancing; not every remix currently supports three stars.
-- Google/Apple/email auth, cloud saves, account linking, shared leaderboards and server score validation are **not connected**. The app labels this state and never presents invented rankings.
-- `CloudService` in `src/services/progress.ts` is the integration boundary. Do not use client-only scores as verified leaderboard entries. Before connecting a backend, implement token verification, owned-data rules, rate limiting, result replay/bounds checks, idempotent rewards and max-progress conflict handling.
-- No sound, music, haptics, ads, real-money purchases, notifications, share sheet, translations, nickname uniqueness/profanity service or full onboarding flow yet.
-- Backgrounding pauses the in-memory run; terminating/reloading the app returns home. Persistent in-progress sessions are not yet implemented.
-- Fonts are bundled. A standalone app can play without a game server. Expo Go needs its development server to load initially; web offline installation/service worker support is not included.
-- Native builds and 60-fps performance on real devices still require testing. The requestAnimationFrame loop uses a capped physics timestep.
+## 4. Create an installable Android APK
 
-## 6. Continue development, step by step
+The archive contains source code, not a signed APK. An EAS build creates the installable app. These remote builds need your Expo account and have not been run in this sandbox.
 
-1. Playtest and tune the first ten levels on physical Android and iOS devices.
-2. Add durable run recovery, animations, original audio, boss variety and remaining onboarding screens.
-3. Configure a Firebase/Supabase project, platform identifiers and Google/Apple OAuth. Integrate auth in a development build and implement server-validated, idempotent scores/rewards before enabling online leaderboards.
-4. Author and balance 90 additional levels with desert, jungle, cave, water, ice, lava, sky, factory and castle mechanics.
-5. Add remaining achievements, localization, accessibility and store policies; verify platform requirements before release.
-6. Profile older devices, test interruptions/offline recovery, then prepare signed store builds.
+```bash
+npx eas-cli login
+npx eas-cli build:configure
+npx eas-cli build --platform android --profile preview
+```
 
-## Code map
+Use the APK download/install link from the completed build on your Android phone. Android may ask you to allow installation from the download source.
+
+For Google Play, build an Android App Bundle instead:
+
+```bash
+npx eas-cli build --platform android --profile production
+```
+
+Before publishing, replace `com.rustyrun.adventure` with your own unique application identifier in `app.json` and configure signing through EAS.
+
+## 5. Build for iPhone
+
+For an internal build on registered iPhones:
+
+```bash
+npx eas-cli login
+npx eas-cli build:configure
+npx eas-cli device:create
+npx eas-cli build --platform ios --profile preview
+```
+
+EAS will guide Apple Developer account, device registration and provisioning. A signed iPhone build needs Apple signing credentials; none are included in the project.
+
+For TestFlight/App Store preparation:
+
+```bash
+npx eas-cli build --platform ios --profile production
+```
+
+For an iOS Simulator build on a Mac:
+
+```bash
+npx eas-cli build --platform ios --profile ios-simulator
+```
+
+The simulator build cannot be installed on a physical iPhone. You can also open an already configured simulator/emulator through `npm run ios` (Mac + Xcode) or `npm run android` (Android Studio).
+
+## 6. What the game contains
+
+| System       | Current implementation                                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Mobile shell | Portrait menus, bottom navigation, landscape game, safe areas, Android Back handling                                |
+| Platformer   | Movement, jumping, gravity, collision, pits, enemy stomps/chains, checkpoints, timer, flag and a three-hit guardian |
+| Scoring      | Central action-point rules, 1–3 stars, best scores, time/no-damage bonuses, coins separate from points              |
+| First world  | Ten authored platform arrangements, three tokens per level, coins/gems, pickups and bonus blocks                    |
+| Progress     | 100 level nodes in 10 worlds, sequential/star gates, lives/refills and local persistence                            |
+| Meta game    | Skin and power-up shop, daily rewards, four achievements, profile and settings                                      |
+| Art          | Original fox, landscapes and icon paths drawn in SVG; bundled fonts                                                 |
+
+The first ten levels are free to retry. Later starts and death retries cost a life; one life refills every 20 minutes up to five. Collected currency and extra lives bank on successful completion. Replays can earn coins; total points use each level's best score. Checkpoint retries preserve collectibles and mark the run damaged.
+
+## 7. Work still needed for the full brief
+
+This remains a playable **guest prototype**, not a completed store release:
+
+- Worlds 2–10 remix the first ten layouts. The remaining 90 bespoke levels, world-specific mechanics, distinct bosses and later score-target balancing still need work.
+- Google/Apple/email sign-in, cloud saves, account linking, shared leaderboards and server score validation are not connected. `CloudService` is the service boundary; leaderboard screens explain the connection status.
+- Sound, music, haptics, ads, notifications, real-money purchases, sharing, translations and full onboarding are not implemented.
+- Backgrounding pauses the run in memory. Force-closing the app ends the current run; completed progress remains saved. Durable in-progress recovery is still needed.
+- Before cloud launch: implement authentication, owned-data rules, idempotent rewards/results, rate limits, score replay/validation and max-progress conflict handling.
+- Physical-phone touch behavior, orientation, interruptions and frame-rate performance need real-device testing. Native JavaScript/Hermes exports do not prove these runtime behaviors.
+
+## Source guide
 
 ```text
-App.tsx                   App shell, navigation, state, dialogs and results
-src/components/Art.tsx    Original fox and world illustrations
-src/components/Icon.tsx   Vector icon set
-src/components/UI.tsx     Buttons, typography, progress and stars
-src/screens/             Home, world map, game and meta screens
-src/game/levels.ts        Ten base layouts and 100-level world plan
-src/game/engine.ts        Pure deterministic timestep game logic
-src/game/scoring.ts       Central scoring rules
-src/services/progress.ts  Progress, rewards, gates and cloud interface
-src/services/storage.ts   Device-only persistence adapter
-src/theme.ts              Palette and fonts
-tests/game.test.ts        Scoring, game and progression tests
+App.tsx                          Mobile shell, orientation, bottom tabs, state and dialogs
+src/components/LaunchIntro.tsx    2.5-second animated opening
+src/components/TouchControl.tsx   Per-touch movement/jump controls
+src/screens/Game.tsx              Fullscreen scene, HUD, camera and pause
+src/screens/Home.tsx              Phone home screen
+src/screens/WorldMap.tsx          World and level selection
+src/screens/Meta.tsx              Shop, rewards, achievements, profile and settings
+src/game/engine.ts                Pure game simulation
+src/game/scoring.ts               Points and star rules
+src/game/levels.ts                Level layouts and world definitions
+src/services/progress.ts          Progress, reward and cloud interfaces
+src/services/storage.ts           AsyncStorage persistence
+src/components/Art.tsx            Original vector artwork
+app.json                         Android/iOS identifiers and orientation plugin
+eas.json                        APK, iPhone, simulator and production profiles
 ```
 
-## Checks
+## Validation
 
 ```bash
 npm run typecheck
 npm test
-npm run build             # static web export to dist/
 npx expo install --check
+npm run build           # Android + iOS JavaScript/Hermes exports
 ```
 
-Ten behavioral tests cover scoring, the brief's worked example, collectibles, collision/jump physics, checkpoints, boss/flag completion, damage, rewards, refills, unlocks and a full level-one input replay. Also perform a web smoke check after UI changes.
+`npm run build` checks native bundling; it does **not** generate an APK/IPA. Use the EAS commands above for signed installable apps.
 
-### Dependency audit
+Two new tests cover simultaneous touch batches and independent release. The 10 existing game/progression tests remain valid because those modules and test files are unchanged by the mobile adaptation. They cover scoring, the brief's worked example, collisions, collectibles, checkpoints, completion, damage, daily rewards, lives, unlocking and a full level-one input replay.
 
-At implementation time, npm audit reports 23 advisories (16 high, 7 moderate) in the Expo/React Native tooling tree, including braces, node-forge and uuid. The latest available braces and node-forge versions remain affected. Do not run npm audit fix --force: its proposed downgrades break the SDK version pairing. Recheck upstream fixes before distribution.
+The dependency installation still reports 23 upstream advisories (16 high, 7 moderate) in the Expo/React Native tooling dependency tree. Do not apply the proposed incompatible SDK downgrades using `npm audit fix --force`. Recheck upstream fixes before release.
 
-## Assets and licenses
+## Licenses
 
-Illustrations and icon paths are original artwork for this project. Font packages include their SIL Open Font License files; retain them with redistributed fonts. Expo template images in assets/ are unused.
+Illustrations and icon paths are original source artwork. Fredoka and Nunito Sans font packages include SIL Open Font License files; retain those licenses when redistributing font files. Template images in `assets/` are unused.
