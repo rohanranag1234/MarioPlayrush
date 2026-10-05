@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Run for Life",
+    "slug": "run-for-life",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "requireFullScreen": true,
+      "bundleIdentifier": "com.rustyrun.adventure"
+    },
+    "android": {
+      "package": "com.rustyrun.adventure"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT_UP"
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
+    ],
+    "platforms": ["ios", "android"]
+  }
+}
